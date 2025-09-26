@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kijani City — Interactive Dashboard</title>
+
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+
+  <!-- Chart.js for simple charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+    :root{
+      --green-700: #2e7d32;
+      --green-600: #388e3c;
+      --glass: rgba(255,255,255,0.92);
+    }
+
+    * { box-sizing: border-box; }
+    html,body { height:100%; }
+    body {
+      margin: 0;
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(rgba(0,0,0,0.25), rgba(0,0,0,0.25)), url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?ixlib=rb-4.0.3&auto=format&fit=crop&w=1950&q=80') no-repeat center center fixed;
+      background-size: cover;
+      color: #222;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      padding-bottom: 2rem;
+    }
+
+    header {
+      background-color: rgba(46,125,50,0.95);
+      color: white;
+      padding: 1rem;
+      text-align: center;
+      font-size: 1.6rem;
+      font-weight: 700;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+    }
+
+    nav {
+      display:flex;
+      justify-content:center;
+      gap:0.25rem;
+      padding:0.5rem;
+      background-color: rgba(56,142,60,0.9);
+    }
+    nav a {
+      color:white;
+      text-decoration:none;
+      padding:0.5rem 0.8rem;
+      border-radius:8px;
+      font-weight:700;
+      display:flex;
+      gap:0.5rem;
+      align-items:center;
+      transition:transform .15s ease, background .15s;
+    }
+    nav a:hover { transform: translateY(-2px); background: rgba(0,0,0,0.08); }
+
+    main.container {
+      max-width:1200px;
+      margin: 1rem auto;
+      padding: 1rem;
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      gap: 1rem;
+    }
+
+    /* left area: dashboard */
+    .left {
+      display:grid;
+      gap:1rem;
+    }
+
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px,1fr));
+      gap: 1rem;
+    }
+    .card {
+      background: var(--glass);
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+      transition: transform .18s ease, box-shadow .18s ease;
+      cursor: pointer;
+    }
+    .card:hover { transform: translateY(-6px); box-shadow: 0 12px 30px rgba(0,0,0,0.24); }
+
+    .card h3 { margin:0 0 .5rem 0; color:var(--green-700); display:flex; align-items:center; gap:0.6rem; }
+    .card p { margin:0; color:#333; }
+
+    /* right sidebar */
+    aside.right {
+      display:flex;
+      flex-direction:column;
+      gap:1rem;
+    }
+    .panel {
+      background: var(--glass);
+      padding:1rem;
+      border-radius:12px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.16);
+    }
+
+    /* community feed */
+    .feed {
+      display:flex;
+      flex-direction:column;
+      gap:.75rem;
+      max-height: 320px;
+      overflow:auto;
+      padding-right:6px;
+    }
+    .post {
+      border-left:4px solid var(--green-600);
+      padding:0.6rem;
+      background:rgba(255,255,255,0.85);
+      border-radius:8px;
+    }
+    .post small { color:#555; }
+
+    /* forms */
+    .form-row { display:flex; gap:.5rem; margin-bottom:.5rem; }
+    label { font-size:0.85rem; margin-bottom:.25rem; display:block; color:#234; }
+    input[type="text"], input[type="number"], input[type="email"], select, textarea {
+      width:100%;
+      padding:.5rem .6rem;
+      border-radius:8px;
+      border:1px solid rgba(0,0,0,0.12);
+      font-size:0.95rem;
+    }
+    button {
+      background: var(--green-700);
+      color:white;
+      border:0;
+      padding:.6rem .9rem;
+      border-radius:10px;
+      font-weight:700;
+      cursor:pointer;
+    }
+    button.secondary {
+      background: #6c6c6c;
+    }
+
+    /* modal */
+    .modal-backdrop {
+      position: fixed;
+      inset:0;
+      background: rgba(0,0,0,0.45);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:90;
+    }
+    .modal {
+      width: min(920px, 96%);
+      max-height: 92%;
+      overflow:auto;
+      background: white;
+      border-radius:12px;
+      padding:1rem;
+      box-shadow: 0 14px 60px rgba(0,0,0,0.5);
+    }
+    .modal header { display:flex; justify-content:space-between; align-items:center; gap:.5rem; }
+    .close-btn { background:transparent; border:0; font-size:1.3rem; cursor:pointer; }
+
+    /* table */
+    table { width:100%; border-collapse:collapse; }
+    td, th { padding:.45rem .6rem; border-bottom:1px solid rgba(0,0,0,0.06); text-align:left; font-size:.95rem; }
+
+    /* transport list */
+    .route { padding:.6rem; background:rgba(255,255,255,0.9); border-radius:8px; margin-bottom:.6rem; display:flex; justify-content:space-between; align-items:center; gap:.5rem; }
+    .route small { color:#444; }
+
+    footer {
+      text-align:center;
+      color:white;
+      margin-top:1rem;
+      font-size:0.9rem;
+    }
+
+    /* small screens */
+    @media (max-width:1000px){
+      main.container { grid-template-columns: 1fr; padding: 0.5rem; }
+    }
+
+  </style>
+</head>
+<body>
+  <header>
+    🌿 Kijani City — Interactive Dashboard
+  </header>
+
+  <nav>
+    <a href="#services" data-open="services"><i class="fas fa-concierge-bell"></i> Services</a>
+    <a href="#community" data-open="community"><i class="fas fa-users"></i> Community</a>
+    <a href="#payments" data-open="payments"><i class="fas fa-credit-card"></i> Payments</a>
+    <a href="#transport" data-open="transport"><i class="fas fa-bus"></i> Transport</a>
+  </nav>
+
+  <main class="container" role="main">
+    <section class="left">
+      <div class="dashboard" aria-label="Main features">
+        <div class="card" id="card-services" data-open="services" tabindex="0" role="button" aria-pressed="false">
+          <h3><i class="fas fa-concierge-bell"></i> City Services</h3>
+          <p>Utilities, waste management, complaints and emergency contacts.</p>
+        </div>
+
+        <div class="card" id="card-community" data-open="community" tabindex="0" role="button" aria-pressed="false">
+          <h3><i class="fas fa-users"></i> Community Updates</h3>
+          <p>Community feed — post announcements and events for residents.</p>
+        </div>
+
+        <div class="card" id="card-payments" data-open="payments" tabindex="0" role="button" aria-pressed="false">
+          <h3><i class="fas fa-credit-card"></i> Payments</h3>
+          <p>Pay bills, view history, and track payments.</p>
+        </div>
+
+        <div class="card" id="card-transport" data-open="transport" tabindex="0" role="button" aria-pressed="false">
+          <h3><i class="fas fa-bus"></i> Transport</h3>
+          <p>View public transport routes and eco-friendly routes.</p>
+        </div>
+      </div>
+
+      <!-- Recent activity / Payments chart -->
+      <div class="panel" id="payments-panel">
+        <h3 style="margin-top:0; color:var(--green-700)"><i class="fas fa-chart-line"></i> Payments Summary</h3>
+        <p style="margin:0 0 .5rem 0">Recent payments this month (mock data stored locally)</p>
+        <canvas id="paymentsChart" style="width:100%;height:220px;"></canvas>
+      </div>
+
+      <!-- Services modal content is triggered below via JS -->
+    </section>
+
+    <!-- Right sidebar -->
+    <aside class="right" aria-label="Sidebar">
+      <div class="panel" id="community-panel">
+        <h3 style="margin-top:0; color:var(--green-700)"><i class="fas fa-users"></i> Community Feed</h3>
+
+        <div style="margin-bottom:.5rem;">
+          <label for="post-author">Name</label>
+          <input id="post-author" placeholder="Your name (public)"/>
+        </div>
+        <div style="margin-bottom:.5rem;">
+          <label for="post-text">Announcement</label>
+          <textarea id="post-text" rows="2" placeholder="Share something with your neighborhood"></textarea>
+        </div>
+        <div style="display:flex; gap:.5rem; justify-content:flex-end;">
+          <button id="post-btn">Post</button>
+          <button id="clear-feed" class="secondary">Clear Feed</button>
+        </div>
+
+        <hr style="margin:.75rem 0; border:none; border-top:1px solid rgba(0,0,0,0.06)">
+
+        <div class="feed" id="feed-list" aria-live="polite"></div>
+      </div>
+
+      <div class="panel" id="transport-panel">
+        <h3 style="margin-top:0; color:var(--green-700)"><i class="fas fa-bus"></i> Transport Routes</h3>
+
+        <div style="margin-bottom:.6rem;">
+          <label for="route-filter">Filter by type</label>
+          <select id="route-filter">
+            <option value="all">All</option>
+            <option value="bus">Bus</option>
+            <option value="shuttle">Shuttle</option>
+            <option value="eco">Eco (bike/walk)</option>
+          </select>
+        </div>
+
+        <div id="routes-list" style="max-height:340px; overflow:auto; padding-right:6px;"></div>
+      </div>
+    </aside>
+  </main>
+
+  <footer>
+    © Kijani City — Demo · Local demo data stored in your browser
+  </footer>
+
+  <!-- Modal backdrop -->
+  <div class="modal-backdrop" id="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" id="modal">
+      <header>
+        <h2 id="modal-title">Modal</h2>
+        <div>
+          <button class="close-btn" id="modal-close" aria-label="Close modal"><i class="fas fa-times"></i></button>
+        </div>
+      </header>
+
+      <main id="modal-body" style="margin-top:.75rem;"></main>
+    </div>
+  </div>
+
+  <script>
+    /*******************************************************
+     * Kijani City — Interactive JS (single-file demo)
+     * - Adds interactivity to the provided HTML structure.
+     * - Uses localStorage for persistence across page reloads.
+     *******************************************************/
+
+    // Utilities
+    const $ = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+    // Elements
+    const modalBackdrop = $('#modal-backdrop');
+    const modalTitle = $('#modal-title');
+    const modalBody = $('#modal-body');
+    const modalClose = $('#modal-close');
+
+    // Initial data (mock) for transport and payments
+    const defaultRoutes = [
+      { id:1, name: "Central ↔ Riverside Bus", type: "bus", duration: "25m", eco: false, next: "08:15, 08:45, 09:15"},
+      { id:2, name: "Market Shuttle", type: "shuttle", duration: "12m", eco: false, next: "08:30, 09:00"},
+      { id:3, name: "Park Bike Lane (eco)", type: "eco", duration: "walking/biking", eco: true, next: "Always available"},
+      { id:4, name: "University Express", type: "bus", duration: "18m", eco: false, next: "07:30, 08:30, 09:30"},
+      { id:5, name: "Green Loop (eco)", type: "eco", duration: "25m by bike", eco: true, next: "Always available"}
+    ];
+
+    const defaultPayments = [
+      { id:1, date: daysAgo(3), amount: 1250, reference: "WATER-001", type:"Water"},
+      { id:2, date: daysAgo(10), amount: 4800, reference: "ELECT-022", type:"Electricity"},
+      { id:3, date: daysAgo(18), amount: 300, reference: "WASTE-004", type:"Waste"}
+    ];
+
+    function daysAgo(n){
+      const d = new Date();
+      d.setDate(d.getDate() - n);
+      return d.toISOString().slice(0,10);
+    }
+
+    // Persisted keys
+    const FEED_KEY = 'kijani_feed_v1';
+    const PAY_KEY  = 'kijani_payments_v1';
+    const ROUTES_KEY = 'kijani_routes_v1';
+
+    // --- Modal helpers ---
+    function openModal(title, htmlContent){
+      modalTitle.textContent = title;
+      if (typeof htmlContent === 'string'){
+        modalBody.innerHTML = htmlContent;
+      } else {
+        modalBody.innerHTML = '';
+        modalBody.appendChild(htmlContent);
+      }
+      modalBackdrop.style.display = 'flex';
+      modalBackdrop.setAttribute('aria-hidden','false');
+      // trap focus (simple)
+      modalClose.focus();
+    }
+    function closeModal(){
+      modalBackdrop.style.display = 'none';
+      modalBackdrop.setAttribute('aria-hidden','true');
+    }
+    modalClose.addEventListener('click', closeModal);
+    modalBackdrop.addEventListener('click', (e) => {
+      if (e.target === modalBackdrop) closeModal();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modalBackdrop.style.display === 'flex') closeModal();
+    });
+
+    // --- Navigation and card clicks ---
+    $$('[data-open]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        const target = el.dataset.open;
+        if (target === 'services') showServices();
+        if (target === 'community') showCommunity();
+        if (target === 'payments') showPayments();
+        if (target === 'transport') showTransport();
+      });
+    });
+
+    // --- Services modal ---
+    function showServices(){
+      const content = document.createElement('div');
+      content.innerHTML = `
+        <p>Quick access to essential city services.</p>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:.5rem; margin-top:.5rem;">
+          <button class="svc-btn" data-svc="Report Waste">Report Waste</button>
+          <button class="svc-btn" data-svc="Streetlight Issue">Streetlight Issue</button>
+          <button class="svc-btn" data-svc="Water Problem">Water Problem</button>
+          <button class="svc-btn" data-svc="Emergency Contacts">Emergency Contacts</button>
+        </div>
+        <div id="svc-result" style="margin-top:.8rem;"></div>
+      `;
+      openModal('City Services', content);
+
+      content.querySelectorAll('.svc-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const svc = btn.dataset.svc;
+          const res = content.querySelector('#svc-result');
+          if (svc === 'Emergency Contacts') {
+            res.innerHTML = `<strong>Emergency Contacts</strong>
+              <ul>
+                <li>Police: 100</li>
+                <li>Fire: 101</li>
+                <li>Ambulance: 102</li>
+              </ul>`;
+          } else {
+            // simulate creating a report
+            res.innerHTML = `<em>Created a quick report for:</em> <strong>${svc}</strong> — reference <code>${svc.slice(0,3).toUpperCase()}-${Date.now().toString().slice(-5)}</code>`;
+          }
+        });
+      });
+    }
+
+    // --- Community feed ---
+    function loadFeed(){
+      const raw = localStorage.getItem(FEED_KEY);
+      let feed = raw ? JSON.parse(raw) : [];
+      return feed;
+    }
+    function saveFeed(feed){
+      localStorage.setItem(FEED_KEY, JSON.stringify(feed));
+    }
+    function renderFeed(){
+      const feedList = $('#feed-list');
+      feedList.innerHTML = '';
+      const feed = loadFeed();
+      if (!feed.length){
+        feedList.innerHTML = '<div style="color:#444">No posts yet — be the first to share an announcement.</div>';
+        return;
+      }
+      feed.slice().reverse().forEach(post => {
+        const div = document.createElement('div');
+        div.className = 'post';
+        div.innerHTML = `<strong>${escapeHtml(post.author || 'Anonymous')}</strong> <small>· ${post.date}</small>
+                         <div style="margin-top:.4rem">${escapeHtml(post.text)}</div>`;
+        feedList.appendChild(div);
+      });
+    }
+
+    $('#post-btn').addEventListener('click', () => {
+      const t = $('#post-text').value.trim();
+      const a = $('#post-author').value.trim() || 'Anonymous';
+      if (!t) {
+        alert('Please enter an announcement before posting.');
+        return;
+      }
+      const feed = loadFeed();
+      feed.push({ author: a, text: t, date: (new Date()).toISOString().slice(0,10) });
+      saveFeed(feed);
+      $('#post-text').value = '';
+      renderFeed();
+    });
+
+    $('#clear-feed').addEventListener('click', () => {
+      if (!confirm('Clear the community feed for this browser?')) return;
+      localStorage.removeItem(FEED_KEY);
+      renderFeed();
+    });
+
+    function escapeHtml(s){
+      return (s+'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+
+    // --- Payments (simple form + chart) ---
+    function loadPayments(){
+      const raw = localStorage.getItem(PAY_KEY);
+      if (raw) return JSON.parse(raw);
+      localStorage.setItem(PAY_KEY, JSON.stringify(defaultPayments));
+      return defaultPayments;
+    }
+    function savePayments(list){
+      localStorage.setItem(PAY_KEY, JSON.stringify(list));
+    }
+
+    function showPayments(){
+      // build modal content with a small payment form and table of payments
+      const container = document.createElement('div');
+      container.innerHTML = `
+        <p>Make a secure payment (demo). Payments stored only in your browser.</p>
+
+        <div style="display:grid; gap:.5rem; grid-template-columns: 1fr 1fr; margin-top:.5rem;">
+          <div>
+            <label>Payment Type</label>
+            <select id="pay-type">
+              <option value="Water">Water</option>
+              <option value="Electricity">Electricity</option>
+              <option value="Waste">Waste</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label>Amount (KSH)</label>
+            <input id="pay-amount" type="number" min="1" />
+          </div>
+        </div>
+
+        <div style="margin-top:.5rem;">
+          <label>Reference (optional)</label>
+          <input id="pay-ref" placeholder="e.g. BILL-2025-123" />
+        </div>
+
+        <div style="display:flex; gap:.5rem; justify-content:flex-end; margin-top:.6rem;">
+          <button id="pay-submit">Pay now</button>
+          <button id="pay-cancel" class="secondary">Cancel</button>
+        </div>
+
+        <hr style="margin:.8rem 0; border:none; border-top:1px solid rgba(0,0,0,0.06)">
+
+        <h4 style="margin:.5rem 0 0 0">Payment history</h4>
+        <div id="payments-table" style="margin-top:.5rem;"></div>
+      `;
+      openModal('Payments', container);
+
+      // populate table
+      const refreshTable = () => {
+        const payments = loadPayments();
+        const tbl = document.createElement('table');
+        tbl.innerHTML = '<thead><tr><th>Date</th><th>Type</th><th>Ref</th><th style="text-align:right">Amount (KSH)</th></tr></thead>';
+        const tbody = document.createElement('tbody');
+        payments.slice().reverse().forEach(p => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${p.date}</td><td>${escapeHtml(p.type)}</td><td>${escapeHtml(p.reference||'—')}</td><td style="text-align:right">${Number(p.amount).toLocaleString()}</td>`;
+          tbody.appendChild(tr);
+        });
+        tbl.appendChild(tbody);
+        $('#payments-table').innerHTML = '';
+        $('#payments-table').appendChild(tbl);
+        updatePaymentsChart();
+      };
+
+      container.querySelector('#pay-cancel').addEventListener('click', closeModal);
+      container.querySelector('#pay-submit').addEventListener('click', () => {
+        const type = container.querySelector('#pay-type').value;
+        const amount = Number(container.querySelector('#pay-amount').value);
+        const ref = container.querySelector('#pay-ref').value.trim() || `${type.slice(0,3).toUpperCase()}-${Date.now().toString().slice(-6)}`;
+        if (!amount || amount <= 0) {
+          alert('Please enter a valid amount.');
+          return;
+        }
+        const payments = loadPayments();
+        payments.push({ id: Date.now(), date: (new Date()).toISOString().slice(0,10), amount, reference: ref, type });
+        savePayments(payments);
+        container.querySelector('#pay-amount').value = '';
+        container.querySelector('#pay-ref').value = '';
+        refreshTable();
+      });
+
+      refreshTable();
+    }
+
+    // Payments chart (render in main panel)
+    let paymentsChartInstance = null;
+    function updatePaymentsChart(){
+      const payments = loadPayments();
+      // aggregate last 6 payments by date
+      const last = payments.slice(-6);
+      const labels = last.map(p => p.date);
+      const amounts = last.map(p => Number(p.amount));
+      const ctx = document.getElementById('paymentsChart').getContext('2d');
+      if (paymentsChartInstance) paymentsChartInstance.destroy();
+      paymentsChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets: [{ label: 'Amount (KSH)', data: amounts, borderRadius:6 }]},
+        options: { responsive:true, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true } } }
+      });
+    }
+
+    // --- Transport ---
+    function loadRoutes(){
+      const raw = localStorage.getItem(ROUTES_KEY);
+      if (raw) return JSON.parse(raw);
+      localStorage.setItem(ROUTES_KEY, JSON.stringify(defaultRoutes));
+      return defaultRoutes;
+    }
+    function saveRoutes(list){
+      localStorage.setItem(ROUTES_KEY, JSON.stringify(list));
+    }
+
+    function renderRoutes(filter='all'){
+      const list = $('#routes-list');
+      const routes = loadRoutes().filter(r => filter === 'all' || r.type === filter);
+      list.innerHTML = '';
+      if (!routes.length) {
+        list.innerHTML = '<div style="color:#444">No routes found.</div>';
+        return;
+      }
+      routes.forEach(r => {
+        const div = document.createElement('div');
+        div.className = 'route';
+        div.innerHTML = `<div>
+            <strong>${escapeHtml(r.name)}</strong><br/>
+            <small>${escapeHtml(r.duration)} · Next: ${escapeHtml(r.next)}</small>
+          </div>
+          <div style="text-align:right">
+            <div style="font-weight:700">${r.type.toUpperCase()}</div>
+            <div style="margin-top:.4rem"><button class="small-route-btn" data-id="${r.id}">Navigate</button></div>
+          </div>`;
+        list.appendChild(div);
+      });
+      // attach small handlers
+      $$('.small-route-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = Number(btn.dataset.id);
+          const r = loadRoutes().find(x => x.id === id);
+          if (r) {
+            openModal('Route — ' + r.name, `<p><strong>${r.name}</strong></p>
+              <p>Type: ${r.type}</p>
+              <p>Duration: ${r.duration}</p>
+              <p>Next times: ${r.next}</p>
+              <div style="margin-top:.6rem; display:flex; justify-content:flex-end;">
+                <button id="close-route">Close</button>
+              </div>`);
+            $('#close-route').addEventListener('click', closeModal);
+          }
+        });
+      });
+    }
+
+    $('#route-filter').addEventListener('change', (e) => renderRoutes(e.target.value));
+
+    // --- showCommunity / showTransport functions for nav/cards ---
+    function showCommunity(){
+      // just focus the feed panel and open modal quick view
+      const content = document.createElement('div');
+      content.innerHTML = `<p>Community posts (local to this browser)</p>
+        <div id="modal-feed" style="max-height:320px; overflow:auto;"></div>
+        <div style="display:flex; justify-content:flex-end; margin-top:.6rem;">
+          <button id="modal-close-btn">Close</button>
+        </div>`;
+      openModal('Community Feed', content);
+      // inject feed items
+      const mf = content.querySelector('#modal-feed');
+      const data = loadFeed();
+      if (!data.length) mf.innerHTML = '<div>No posts yet.</div>';
+      else data.slice().reverse().forEach(p => {
+        const el = document.createElement('div');
+        el.style.padding = '.5rem';
+        el.style.borderBottom = '1px solid rgba(0,0,0,0.05)';
+        el.innerHTML = `<strong>${escapeHtml(p.author)}</strong> <small>${p.date}</small><div style="margin-top:.35rem">${escapeHtml(p.text)}</div>`;
+        mf.appendChild(el);
+      });
+      content.querySelector('#modal-close-btn').addEventListener('click', closeModal);
+    }
+
+    function showTransport(){
+      // open modal summarizing transport options
+      const content = document.createElement('div');
+      content.innerHTML = `<p>Transport routes — filter in the right sidebar for a quick view. You can also view details of any route here.</p>
+        <div id="modal-routes" style="max-height:420px; overflow:auto; margin-top:.5rem;"></div>
+        <div style="display:flex; justify-content:flex-end; margin-top:.6rem;">
+          <button id="close-transport">Close</button>
+        </div>`;
+      openModal('Transport Routes', content);
+      const mr = content.querySelector('#modal-routes');
+      loadRoutes().forEach(r => {
+        const el = document.createElement('div');
+        el.style.padding = '.6rem';
+        el.style.marginBottom = '.45rem';
+        el.style.background = 'rgba(245,245,245,0.95)';
+        el.style.borderRadius = '8px';
+        el.innerHTML = `<strong>${escapeHtml(r.name)}</strong><div style="font-size:.9rem;color:#444">${escapeHtml(r.duration)} · Next: ${escapeHtml(r.next)} · ${r.type.toUpperCase()}</div>`;
+        mr.appendChild(el);
+      });
+      content.querySelector('#close-transport').addEventListener('click', closeModal);
+    }
+
+    // --- Initial render and hydration ---
+    function init(){
+      renderFeed();
+      renderRoutes('all');
+      updatePaymentsChart();
+
+      // make cards keyboard accessible (Enter / Space)
+      $$('.card').forEach(c => {
+        c.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') c.click();
+        });
+      });
+    }
+
+    // Attach top-level nav shortcuts for testing convenience
+    window.showServices = showServices;
+    window.showTransport = showTransport;
+    window.showPayments = showPayments;
+    window.showCommunity = showCommunity;
+
+    // hydrate initial data if missing
+    if (!localStorage.getItem(PAY_KEY)) savePayments(defaultPayments);
+    if (!localStorage.getItem(ROUTES_KEY)) saveRoutes(defaultRoutes);
+
+    // init app
+    init();
+
+    // make a non-intrusive tip appear once per browser session
+    if (!sessionStorage.getItem('seen_tip')) {
+      setTimeout(() => {
+        openModal('Tip', '<p>Welcome! This is a local demo. Posts and payments are stored in your browser only. Use the <strong>Payments</strong> card to simulate transactions.</p><div style="display:flex;justify-content:flex-end;"><button id="gotit">Got it</button></div>');
+        $('#gotit').addEventListener('click', closeModal);
+      }, 700);
+      sessionStorage.setItem('seen_tip','1');
+    }
+  </script>
+</body>
+</html>
